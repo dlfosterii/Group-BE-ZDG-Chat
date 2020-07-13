@@ -149,11 +149,28 @@ app.get('/petroom', function (req, res, next) {
 
 app.get('/private', (req, res) => {
     const username = req.session.user.username
-    res.render('private', {
-        title: 'Private Chat',
-        name: username
+    db.User.findOne( {where: { username: username } })
+    db.Message.findAll({
+        where: {
+            RoomId: 4
+        }, 
+        include: [
+            db.User
+        ]
     })
-})
+    .then((results) => {
+        db.User.findByPk(results[0].SenderID)
+        .then((user) => {
+            console.log(user.username)
+            res.render('private', {
+                title: 'Private Chat',
+                messages: results,
+                name: username,
+                senderName: user.username
+            })
+        })
+    })
+});
 
 app.post('/signup', (req, res) => {
     const { username, email, password } = req.body
@@ -200,6 +217,7 @@ io.on('connection', (socket) => {
         socket.on('join', (room) => {  
             people[id] = { name, room };
             sockets[id] = socket.id;
+            sockets[name] = socket.id
             socket.emit('chat message', `You have joined ZDG chat. Hi ${people[id].name}!`);
             // socket.broadcast.emit('chat message', `${people[id].name} has joined the ${room}.`)
             io.emit('emitParticipants', people);
@@ -222,6 +240,32 @@ io.on('connection', (socket) => {
             io.to(sockets[data.id]).emit('private message', {
                 name: people[id].name,
                 message: data.message
+            });
+        });
+        
+        socket.on('privateRoom message', (data) => {
+            console.log(id)
+            console.log(data.id)
+            console.log(data.message)
+            db.Message.create({
+                content: data.message,
+                RoomId: 4, 
+                UserId: data.id,
+                SenderID: id
+            }).then((result) => {
+                io.to(sockets[data.id]).emit('privateRoom message', `${people[id].name} 🗣 ${data.message}`);
+            });
+        });
+
+        socket.on('room message', (data) => {
+            io.to(sockets[data]).emit('room message', {
+                name: people[id].name,
+            });
+        });
+
+        socket.on('confirm message', (data) => {
+            io.to(sockets[data.name]).emit('confirm message', {
+                name: people[id].name,
             });
         });
 

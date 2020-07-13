@@ -75,6 +75,7 @@ $(document).ready(() => {
   $(document).on('click', '.name', function(e) {
       const id = $(this).data('id');
       $('.private-form').data('id', id);
+      $('.message-form').data('id', id);
   });
 
   $('.private-form').on('submit', function(e) {
@@ -84,10 +85,23 @@ $(document).ready(() => {
     $('.privatechat-input').val('');
     socket.emit('private message', { id, message })
   });
+
+  $('.message-form').on('submit', function(e) {
+    e.preventDefault();
+    const message = $('.privatemessage-input').val();
+    const id = $(this).data('id');
+    $('.privatemessage-input').val('');
+    socket.emit('privateRoom message', { id, message });
+  });
   
   socket.on('private message', (data) => {
     alert(`${data.name} says ${data.message}`)
   })
+
+  socket.on('privateRoom message', (message) => {
+    const $newChat = $(`<li class="list-group-item">${message}</li>`);
+    $('#privateRoom').append($newChat);
+  });
 
   socket.on('emitParticipants', (people) => {
     $('#online').html('');
